@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width,initial-scale=1" />
+	<title>Mini Golf</title>
+	<style>
+		html,body { height:100%; margin:0; }
+		body { display:flex; align-items:center; justify-content:center; height:100vh; background:#f5f7fb; }
+		/* Canvas is a centered square that scales with the viewport */
+		canvas { display:block; width:60vmin; height:60vmin; max-width:90vw; max-height:90vh; box-shadow:0 6px 18px rgba(0,0,0,0.12); border-radius:6px; background:transparent; }
+	</style>
+</head>
+<body>
+	<canvas id="game" aria-label="mini golf canvas"></canvas>
+	<script src="main.js"></script>
+</body>
+</html>
