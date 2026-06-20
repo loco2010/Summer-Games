@@ -16,9 +16,11 @@
   const TOOL_BOX = 'box';
   const TOOL_SPHERE = 'sphere';
   const TOOL_WIN = 'win';
+  const TOOL_SLOPE = 'slope';
+  const TOOL_HALF = 'half';
 
-  const EDITOR_COLS = 40;
-  const EDITOR_ROWS = 24;
+  const EDITOR_COLS = 80;
+  const EDITOR_ROWS = 48;
   const GRID_ROWS = EDITOR_ROWS;
   const MIN_MAP_COLS = VIEW_COLS;
   const MIN_MAP_ROWS = VIEW_ROWS;
@@ -33,6 +35,7 @@
   window.app = {
     mode: MODE_PLAY,
     selectedTool: null,
+    selectedOrientation: 0,
     editorGrid: createEmptyGrid(EDITOR_COLS),
     editorCamera: { x: VIEW_COLS / 2, y: VIEW_ROWS / 2 },
     camera: { x: VIEW_COLS / 2, y: VIEW_ROWS / 2, targetX: VIEW_COLS / 2, targetY: VIEW_ROWS / 2 },
@@ -65,6 +68,34 @@
     app.editorGrid[9][16] = { type: TOOL_BOX };
     app.editorGrid[10][16] = { type: TOOL_BOX };
     app.editorGrid[13][26] = { type: TOOL_WIN };
+
+    for (let c = 5; c < 22; c += 2) {
+      app.editorGrid[15][c] = { type: TOOL_BOX };
+    }
+    for (let r = 18; r < 30; r += 3) {
+      app.editorGrid[r][20] = { type: TOOL_BOX };
+      app.editorGrid[r][22] = { type: TOOL_HALF, orientation: 1 };
+    }
+    for (let c = 24; c < 40; c += 3) {
+      app.editorGrid[21][c] = { type: TOOL_HALF, orientation: 0 };
+      app.editorGrid[22][c + 1] = { type: TOOL_SLOPE, orientation: 1 };
+    }
+    for (let c = 42; c < 72; c += 4) {
+      app.editorGrid[10][c] = { type: TOOL_BOX };
+      app.editorGrid[14][c - 1] = { type: TOOL_SLOPE, orientation: 0 };
+      app.editorGrid[16][c + 1] = { type: TOOL_SLOPE, orientation: 3 };
+    }
+    for (let r = 6; r < 40; r += 5) {
+      app.editorGrid[r][45] = { type: TOOL_BOX };
+      app.editorGrid[r + 2][48] = { type: TOOL_SLOPE, orientation: 2 };
+    }
+    app.editorGrid[22][70] = { type: TOOL_SPHERE };
+    app.editorGrid[28][68] = { type: TOOL_BOX };
+    app.editorGrid[30][69] = { type: TOOL_HALF, orientation: 2 };
+    app.editorGrid[35][62] = { type: TOOL_SLOPE, orientation: 0 };
+    app.editorGrid[38][72] = { type: TOOL_BOX };
+    app.editorGrid[40][74] = { type: TOOL_SLOPE, orientation: 3 };
+    app.editorGrid[44][76] = { type: TOOL_BOX };
   }
 
   function syncLevelFromGrid(){
@@ -82,6 +113,32 @@
           app.objects.push({ type: TOOL_SPHERE, x: x, y: y, r: 0.5 });
         } else if (cell.type === TOOL_WIN){
           app.objects.push({ type: TOOL_WIN, x: col, y: row, w: 1, h: 1 });
+        } else if (cell.type === TOOL_HALF){
+          const orientation = cell.orientation || 0;
+          let hx = col;
+          let hy = row;
+          let hw = 1;
+          let hh = 0.5;
+          if (orientation === 0) {
+            hy = row + 0.5;
+            hw = 1;
+            hh = 0.5;
+          } else if (orientation === 1) {
+            hx = col + 0.5;
+            hw = 0.5;
+            hh = 1;
+          } else if (orientation === 2) {
+            hy = row;
+            hw = 1;
+            hh = 0.5;
+          } else if (orientation === 3) {
+            hx = col;
+            hw = 0.5;
+            hh = 1;
+          }
+          app.objects.push({ type: TOOL_HALF, x: hx, y: hy, w: hw, h: hh, orientation });
+        } else if (cell.type === TOOL_SLOPE){
+          app.objects.push({ type: TOOL_SLOPE, x: col, y: row, orientation: cell.orientation || 0 });
         }
       }
     }
@@ -97,7 +154,7 @@
     let minY = Infinity;
     let maxY = -Infinity;
     for (const obj of app.objects){
-      if (obj.type === TOOL_BOX || obj.type === TOOL_WIN){
+      if (obj.type === TOOL_BOX || obj.type === TOOL_WIN || obj.type === TOOL_HALF){
         minX = Math.min(minX, obj.x);
         maxX = Math.max(maxX, obj.x + obj.w);
         minY = Math.min(minY, obj.y);
@@ -207,10 +264,11 @@
     if (col < 0 || col >= EDITOR_COLS || row < 0 || row >= GRID_ROWS) return;
     if (!app.selectedTool) return;
     const current = app.editorGrid[row][col];
-    if (current && current.type === app.selectedTool){
+    const newCell = { type: app.selectedTool, orientation: app.selectedOrientation };
+    if (current && current.type === newCell.type && current.orientation === newCell.orientation){
       app.editorGrid[row][col] = null;
     } else {
-      app.editorGrid[row][col] = { type: app.selectedTool };
+      app.editorGrid[row][col] = newCell;
     }
     syncLevelFromGrid();
   }
@@ -245,10 +303,12 @@
 
   function handleObjectCollisions(){
     for (const obj of app.objects){
-      if (obj.type === TOOL_BOX){
+      if (obj.type === TOOL_BOX || obj.type === TOOL_HALF || obj.type === TOOL_WIN){
         handleBoxCollision(obj);
       } else if (obj.type === TOOL_SPHERE){
         handleSphereCollision(obj);
+      } else if (obj.type === TOOL_SLOPE){
+        handleSlopeCollision(obj);
       }
     }
   }
@@ -300,21 +360,73 @@
     }
   }
 
+  function handleSlopeCollision(obj){
+    const lx = app.ball.x - obj.x;
+    const ly = app.ball.y - obj.y;
+    const r = app.ball.r;
+    if (lx < -r || lx > 1 + r || ly < -r || ly > 1 + r) return;
+    let f, t, nx, ny;
+    if (obj.orientation === 0){
+      f = lx + ly - 1;
+      t = (lx - ly + 1) / 2;
+      nx = -1;
+      ny = -1;
+      if (f >= 0) return;
+    } else if (obj.orientation === 1){
+      f = ly - lx;
+      t = (lx + ly) / 2;
+      nx = 1;
+      ny = -1;
+      if (f >= 0) return;
+    } else if (obj.orientation === 2){
+      f = lx + ly - 1;
+      t = (lx - ly + 1) / 2;
+      nx = 1;
+      ny = 1;
+      if (f <= 0) return;
+    } else {
+      f = ly - lx;
+      t = (lx + ly) / 2;
+      nx = -1;
+      ny = 1;
+      if (f <= 0) return;
+    }
+    if (t < 0 || t > 1) return;
+    const dist = Math.abs(f) / Math.SQRT2;
+    if (dist >= r) return;
+    const len = Math.hypot(nx, ny);
+    nx /= len;
+    ny /= len;
+    const push = r - dist;
+    app.ball.x += nx * push;
+    app.ball.y += ny * push;
+    const velAlong = app.ball.vx * nx + app.ball.vy * ny;
+    if (velAlong < 0){
+      app.ball.vx -= 2 * velAlong * nx;
+      app.ball.vy -= 2 * velAlong * ny;
+      app.ball.vx *= COLLISION_DAMPING;
+      app.ball.vy *= COLLISION_DAMPING;
+    }
+  }
+
   function checkWinZones(){
     for (const obj of app.objects){
       if (obj.type !== TOOL_WIN) continue;
-      if (app.ball.x - app.ball.r >= obj.x &&
-          app.ball.x + app.ball.r <= obj.x + obj.w &&
-          app.ball.y - app.ball.r >= obj.y &&
-          app.ball.y + app.ball.r <= obj.y + obj.h){
+      const closestX = clamp(app.ball.x, obj.x, obj.x + obj.w);
+      const closestY = clamp(app.ball.y, obj.y, obj.y + obj.h);
+      const dx = app.ball.x - closestX;
+      const dy = app.ball.y - closestY;
+      const dist2 = dx * dx + dy * dy;
+      if (dist2 <= app.ball.r * app.ball.r){
         if (!app.winTriggered){
-          console.log('You win!');
           app.winTriggered = true;
+          app.paused = true;
+          app.ball.vx = 0;
+          app.ball.vy = 0;
         }
         return;
       }
     }
-    app.winTriggered = false;
   }
 
   function draw(){
@@ -377,6 +489,33 @@
       if (obj.type === TOOL_BOX){
         ctx.fillStyle = '#1f2f62';
         ctx.fillRect(obj.x, obj.y, obj.w, obj.h);
+      } else if (obj.type === TOOL_HALF){
+        ctx.fillStyle = '#1f2f62';
+        ctx.fillRect(obj.x, obj.y, obj.w, obj.h);
+      } else if (obj.type === TOOL_SLOPE){
+        ctx.save();
+        ctx.fillStyle = '#1f2f62';
+        ctx.beginPath();
+        if (obj.orientation === 0){
+          ctx.moveTo(obj.x, obj.y + 1);
+          ctx.lineTo(obj.x + 1, obj.y + 1);
+          ctx.lineTo(obj.x + 1, obj.y);
+        } else if (obj.orientation === 1){
+          ctx.moveTo(obj.x, obj.y);
+          ctx.lineTo(obj.x + 1, obj.y);
+          ctx.lineTo(obj.x + 1, obj.y + 1);
+        } else if (obj.orientation === 2){
+          ctx.moveTo(obj.x, obj.y);
+          ctx.lineTo(obj.x, obj.y + 1);
+          ctx.lineTo(obj.x + 1, obj.y);
+        } else {
+          ctx.moveTo(obj.x, obj.y);
+          ctx.lineTo(obj.x, obj.y + 1);
+          ctx.lineTo(obj.x + 1, obj.y + 1);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
       } else if (obj.type === TOOL_SPHERE){
         ctx.beginPath();
         ctx.fillStyle = '#18376d';
@@ -424,7 +563,13 @@
     ctx.font = '12px monospace';
     ctx.fillStyle = '#ffffff';
     if (app.mode === MODE_EDITOR){
-      ctx.fillText('Editor mode: drag with no tool to pan', 12, 20);
+      let toolLabel = 'None';
+      if (app.selectedTool === TOOL_BOX) toolLabel = '1x1 block';
+      if (app.selectedTool === TOOL_HALF) toolLabel = '1x0.5 block';
+      if (app.selectedTool === TOOL_SLOPE) toolLabel = '45° slope';
+      if (app.selectedTool === TOOL_SPHERE) toolLabel = 'Sphere';
+      if (app.selectedTool === TOOL_WIN) toolLabel = 'Win tile';
+      ctx.fillText(`Editor mode: ${toolLabel} (press R to rotate)`, 12, 20);
     }
     if (app.mode === MODE_PLAY){
       const text = app.paused ? 'PAUSED - press P to resume' : 'Play mode: press P to pause';
@@ -525,6 +670,10 @@
       return;
     }
     if (app.mode === MODE_EDITOR){
+      if (event.code === 'KeyR'){
+        app.selectedOrientation = (app.selectedOrientation + 1) % 4;
+        return;
+      }
       let dx = 0;
       let dy = 0;
       if (event.code === 'ArrowLeft' || event.code === 'KeyA') dx = -1;
