@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>8 Ball Pool</title>
+  <style>
+    html, body {
+      height: 100%;
+      margin: 0;
+      background: #000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: Arial, sans-serif;
+    }
+
+    body {
+      overflow: hidden;
+    }
+
+    .app-shell {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      padding: 16px;
+      box-sizing: border-box;
+    }
+
+    .side-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      min-width: 140px;
+    }
+
+    .side-panel button {
+      width: 100%;
+      padding: 12px 14px;
+      border: none;
+      border-radius: 10px;
+      background: #1f2f62;
+      color: #ffffff;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .side-panel button.active {
+      background: #ffde59;
+      color: #102a43;
+    }
+
+    .hud-card {
+      padding: 12px;
+      border-radius: 14px;
+      background: #ffffff;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+      color: #102a43;
+    }
+
+    .hud-card h1 {
+      margin: 0 0 8px;
+      font-size: 18px;
+    }
+
+    .hud-card p {
+      margin: 0;
+      line-height: 1.4;
+      font-size: 13px;
+    }
+
+    .turn-pill {
+      margin-top: 10px;
+      display: inline-block;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: #dbeafe;
+      color: #1d4ed8;
+      font-weight: 700;
+      font-size: 13px;
+    }
+
+    .turn-pill.player-2 {
+      background: #fee2e2;
+      color: #b91c1c;
+    }
+
+    .menu-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.78);
+      z-index: 5;
+    }
+
+    .menu-card {
+      background: #ffffff;
+      border-radius: 16px;
+      padding: 24px;
+      width: min(360px, 90vw);
+      box-shadow: 0 12px 30px rgba(0,0,0,0.25);
+      text-align: center;
+    }
+
+    .menu-card h2 {
+      margin: 0 0 8px;
+      color: #102a43;
+    }
+
+    .menu-card p {
+      margin: 0 0 16px;
+      color: #475569;
+      line-height: 1.4;
+    }
+
+    .menu-card button {
+      width: 100%;
+      padding: 12px 14px;
+      margin-bottom: 10px;
+      border: none;
+      border-radius: 10px;
+      background: #1f2f62;
+      color: #ffffff;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .menu-card button.secondary {
+      background: #0f766e;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    canvas {
+      width: 900px;
+      height: 600px;
+      max-width: 100%;
+      max-height: 100%;
+      display: block;
+      border-radius: 6px;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.35);
+      touch-action: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <div class="menu-overlay" id="menuOverlay">
+      <div class="menu-card">
+        <h2>8 Ball Pool</h2>
+        <p>Choose how you want to play.</p>
+        <button id="twoPlayerButton">2 Player Mode</button>
+        <button id="aiButton" class="secondary">Play with AI</button>
+      </div>
+    </div>
+
+    <div class="side-panel" id="leftPanel">
+      <button id="rackButton">Rack Balls</button>
+      <button id="resetButton">Reset Game</button>
+    </div>
+
+    <canvas id="game" aria-label="8 ball pool canvas"></canvas>
+
+    <div class="side-panel" id="rightPanel">
+      <div class="hud-card">
+        <h1>8 Ball</h1>
+        <p id="status">Rack the balls and drag from the cue ball to shoot.</p>
+        <p id="instructions">Player 1: drag from the white cue ball to send it rolling.</p>
+        <div id="turnIndicator" class="turn-pill player-1">Turn: Player 1</div>
+      </div>
+    </div>
+  </div>
+
+  <script src="main.js"></script>
+</body>
+</html>
